@@ -17,6 +17,10 @@ export const listInteractionsSchema = z
     .object({
         agentId: z.coerce.number().int().positive().max(MAX_DATABASE_ID).optional(),
 
+        type: z
+            .enum(["CALL", "TICKET"])
+            .optional(),
+
         status: z
             .enum(["OPEN", "IN_PROGRESS", "RESOLVED"])
             .optional(),

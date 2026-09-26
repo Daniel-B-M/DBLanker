@@ -1,52 +1,60 @@
 import { BUSINESS_TIMEZONE } from "../../config/environment.js";
 import { pool } from "../../config/database.js";
 import type {
-    CreateInteractionInput,
-    ListInteractionsInput,
-    UpdateInteractionStatusInput,
+  CreateInteractionInput,
+  ListInteractionsInput,
+  UpdateInteractionStatusInput,
 } from "./interaction.schema.js";
 import type {
-    Interaction,
-    InteractionWithAgent,
-    InteractionStatus,
+  Interaction,
+  InteractionWithAgent,
+  InteractionStatus,
 } from "./interaction.types.js";
 
 export async function findInteractions(
-    filters: ListInteractionsInput
+  filters: ListInteractionsInput
 ) {
-    const conditions: string[] = [];
-    const values: unknown[] = [];
+  const conditions: string[] = [];
+  const values: unknown[] = [];
 
-    if (filters.agentId !== undefined) {
-        values.push(filters.agentId);
+  if (filters.agentId !== undefined) {
+    values.push(filters.agentId);
 
-        conditions.push(
-            `i.agent_id = $${values.length}`
-        );
-    }
+    conditions.push(
+      `i.agent_id = $${values.length}`
+    );
+  }
 
-    if (filters.status !== undefined) {
-        values.push(filters.status);
+  if (filters.type !== undefined) {
+    values.push(filters.type);
 
-        conditions.push(
-            `i.status = $${values.length}`
-        );
-    }
+    conditions.push(
+      `i.type = $${values.length}`
+    );
+  }
 
-    if (
-        filters.from !== undefined &&
-        filters.to !== undefined
-    ) {
-        values.push(filters.from);
-        const fromParameter = `$${values.length}`;
+  if (filters.status !== undefined) {
+    values.push(filters.status);
 
-        values.push(filters.to);
-        const toParameter = `$${values.length}`;
+    conditions.push(
+      `i.status = $${values.length}`
+    );
+  }
 
-        values.push(BUSINESS_TIMEZONE);
-        const timezoneParameter = `$${values.length}`;
+  if (
+    filters.from !== undefined &&
+    filters.to !== undefined
+  ) {
+    values.push(filters.from);
+    const fromParameter = `$${values.length}`;
 
-        conditions.push(`
+    values.push(filters.to);
+    const toParameter = `$${values.length}`;
+
+    values.push(BUSINESS_TIMEZONE);
+    const timezoneParameter = `$${values.length}`;
+
+    conditions.push(`
       i.opened_at >= (
         ${fromParameter}::date::timestamp
         AT TIME ZONE ${timezoneParameter}
@@ -56,35 +64,35 @@ export async function findInteractions(
         AT TIME ZONE ${timezoneParameter}
       )
     `);
-    }
+  }
 
-    const whereClause =
-        conditions.length > 0
-            ? `WHERE ${conditions.join(" AND ")}`
-            : "";
+  const whereClause =
+    conditions.length > 0
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
-    const countResult = await pool.query<{ total: number }>(
-        `
+  const countResult = await pool.query<{ total: number }>(
+    `
       SELECT COUNT(*)::int AS total
       FROM interactions i
       ${whereClause};
     `,
-        values
-    );
+    values
+  );
 
-    const offset =
-        (filters.page - 1) * filters.limit;
+  const offset =
+    (filters.page - 1) * filters.limit;
 
-    const dataValues = [...values];
+  const dataValues = [...values];
 
-    dataValues.push(filters.limit);
-    const limitParameter = `$${dataValues.length}`;
+  dataValues.push(filters.limit);
+  const limitParameter = `$${dataValues.length}`;
 
-    dataValues.push(offset);
-    const offsetParameter = `$${dataValues.length}`;
+  dataValues.push(offset);
+  const offsetParameter = `$${dataValues.length}`;
 
-    const dataResult = await pool.query<InteractionWithAgent>(
-        `
+  const dataResult = await pool.query<InteractionWithAgent>(
+    `
       SELECT
         i.id,
         i.agent_id AS "agentId",
@@ -101,20 +109,20 @@ export async function findInteractions(
       LIMIT ${limitParameter}
       OFFSET ${offsetParameter};
     `,
-        dataValues
-    );
+    dataValues
+  );
 
-    return {
-        interactions: dataResult.rows,
-        total: countResult.rows[0]?.total ?? 0,
-    };
+  return {
+    interactions: dataResult.rows,
+    total: countResult.rows[0]?.total ?? 0,
+  };
 }
 
 export async function insertInteraction(
-    input: CreateInteractionInput
+  input: CreateInteractionInput
 ) {
-    const result = await pool.query<Interaction>(
-        `
+  const result = await pool.query<Interaction>(
+    `
       INSERT INTO interactions (
         agent_id,
         type,
@@ -131,21 +139,21 @@ export async function insertInteraction(
         opened_at AS "openedAt",
         closed_at AS "closedAt";
     `,
-        [input.agentId, input.type]
-    );
+    [input.agentId, input.type]
+  );
 
-    const interaction = result.rows[0];
+  const interaction = result.rows[0];
 
-    if (!interaction) {
-        throw new Error("Failed to insert interaction");
-    }
+  if (!interaction) {
+    throw new Error("Failed to insert interaction");
+  }
 
-    return interaction;
+  return interaction;
 }
 
 export async function findInteractionById(id: number) {
-    const result = await pool.query<Interaction>(
-        `
+  const result = await pool.query<Interaction>(
+    `
       SELECT
         id,
         agent_id AS "agentId",
@@ -157,19 +165,19 @@ export async function findInteractionById(id: number) {
       WHERE id = $1
       LIMIT 1;
     `,
-        [id]
-    );
+    [id]
+  );
 
-    return result.rows[0] ?? null;
+  return result.rows[0] ?? null;
 }
 
 export async function updateInteractionStatus(
-    id: number,
-    status: UpdateInteractionStatusInput["status"],
-    expectedStatus: InteractionStatus,
+  id: number,
+  status: UpdateInteractionStatusInput["status"],
+  expectedStatus: InteractionStatus,
 ) {
-    const result = await pool.query<Interaction>(
-        `
+  const result = await pool.query<Interaction>(
+    `
       UPDATE interactions
       SET
         status = $2,
@@ -186,8 +194,8 @@ export async function updateInteractionStatus(
         opened_at AS "openedAt",
         closed_at AS "closedAt";
     `,
-        [id, status, status, expectedStatus],
-    );
+    [id, status, status, expectedStatus],
+  );
 
-    return result.rows[0] ?? null;
+  return result.rows[0] ?? null;
 }

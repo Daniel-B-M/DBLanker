@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 
 import agentRoutes from "./modules/agents/agent.routes.js";
 import interactionRoutes from "./modules/interactions/interaction.routes.js";
@@ -8,6 +9,14 @@ import metricsRoutes from "./modules/metrics/metrics.routes.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
+
+app.use(
+    cors({
+        origin: "http://localhost:5173",
+    }),
+);
+
+app.use(express.json());
 
 const PORT = Number(process.env.PORT ?? 3000);
 
