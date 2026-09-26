@@ -1,0 +1,7 @@
+BEGIN;
+
+TRUNCATE TABLE interactions, agents
+RESTART IDENTITY
+CASCADE;
+
+COMMIT;
