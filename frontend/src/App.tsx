@@ -9,8 +9,11 @@ import {
   getAgents,
   type Agent,
 } from './services/agents.api'
+import MetricsPage from './pages/MetricsPage'
 
 function App() {
+  const [activeView, setActiveView] =
+    useState<'interactions' | 'metrics'>('interactions')
   const [interactions, setInteractions] = useState<Interaction[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [appliedFilters, setAppliedFilters] =
@@ -97,150 +100,174 @@ function App() {
     <main>
       <h1>WeKall Dashboard</h1>
 
-      <h2>Interactions</h2>
-
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="agentId">Agent</label>
-
-          <select
-            id="agentId"
-            value={agentId}
-            onChange={(event) => setAgentId(event.target.value)}
-          >
-            <option value="">All agents</option>
-
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="type">Type</label>
-          <select
-            id="type"
-            value={type}
-            onChange={(event) => setType(event.target.value)}
-          >
-            <option value="">All types</option>
-            <option value="CALL">CALL</option>
-            <option value="TICKET">TICKET</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="status">Status</label>
-          <select
-            id="status"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="">All statuses</option>
-            <option value="OPEN">OPEN</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="RESOLVED">RESOLVED</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="from">From</label>
-          <input
-            id="from"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="to">To</label>
-          <input
-            id="to"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </div>
-
-        <button type="submit">Apply filters</button>
-
-        <button type="button" onClick={handleClearFilters}>
-          Clear filters
+      <nav aria-label="Dashboard views">
+        <button
+          type="button"
+          aria-pressed={activeView === 'interactions'}
+          onClick={() => setActiveView('interactions')}
+        >
+          Interactions
         </button>
-      </form>
+        <button
+          type="button"
+          aria-pressed={activeView === 'metrics'}
+          onClick={() => setActiveView('metrics')}
+        >
+          Metrics
+        </button>
+      </nav>
 
-      {loading && <p>Loading interactions...</p>}
-
-      {error && <p>{error}</p>}
-
-      {!loading && !error && interactions.length === 0 && (
-        <p>No interactions found.</p>
-      )}
-
-      {!loading && !error && interactions.length > 0 && (
+      {activeView === 'metrics' ? (
+        <MetricsPage />
+      ) : (
         <>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Agent</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Opened at</th>
-                <th>Closed at</th>
-              </tr>
-            </thead>
 
-            <tbody>
-              {interactions.map((interaction) => (
-                <tr key={interaction.id}>
-                  <td>{interaction.id}</td>
-                  <td>{interaction.agentName}</td>
-                  <td>{interaction.type}</td>
-                  <td>{interaction.status}</td>
-                  <td>
-                    {new Date(interaction.openedAt).toLocaleString()}
-                  </td>
-                  <td>
-                    {interaction.closedAt
-                      ? new Date(interaction.closedAt).toLocaleString()
-                      : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2>Interactions</h2>
 
-          {pagination && (
-            <div className="pagination">
-              <button
-                type="button"
-                disabled={pagination.page <= 1}
-                onClick={() =>
-                  handlePageChange(pagination.page - 1)
-                }
+          <form onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="agentId">Agent</label>
+
+              <select
+                id="agentId"
+                value={agentId}
+                onChange={(event) => setAgentId(event.target.value)}
               >
-                Previous
-              </button>
+                <option value="">All agents</option>
 
-              <span>
-                Page {pagination.page} of {pagination.totalPages}
-                {' '}({pagination.total} interactions)
-              </span>
-
-              <button
-                type="button"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() =>
-                  handlePageChange(pagination.page + 1)
-                }
-              >
-                Next
-              </button>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            <div>
+              <label htmlFor="type">Type</label>
+              <select
+                id="type"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                <option value="">All types</option>
+                <option value="CALL">CALL</option>
+                <option value="TICKET">TICKET</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="status">Status</label>
+              <select
+                id="status"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="">All statuses</option>
+                <option value="OPEN">OPEN</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="RESOLVED">RESOLVED</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="from">From</label>
+              <input
+                id="from"
+                type="date"
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="to">To</label>
+              <input
+                id="to"
+                type="date"
+                value={to}
+                onChange={(event) => setTo(event.target.value)}
+              />
+            </div>
+
+            <button type="submit">Apply filters</button>
+
+            <button type="button" onClick={handleClearFilters}>
+              Clear filters
+            </button>
+          </form>
+
+          {loading && <p>Loading interactions...</p>}
+
+          {error && <p>{error}</p>}
+
+          {!loading && !error && interactions.length === 0 && (
+            <p>No interactions found.</p>
+          )}
+
+          {!loading && !error && interactions.length > 0 && (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Agent</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Opened at</th>
+                    <th>Closed at</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {interactions.map((interaction) => (
+                    <tr key={interaction.id}>
+                      <td>{interaction.id}</td>
+                      <td>{interaction.agentName}</td>
+                      <td>{interaction.type}</td>
+                      <td>{interaction.status}</td>
+                      <td>
+                        {new Date(interaction.openedAt).toLocaleString()}
+                      </td>
+                      <td>
+                        {interaction.closedAt
+                          ? new Date(interaction.closedAt).toLocaleString()
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {pagination && (
+                <div className="pagination">
+                  <button
+                    type="button"
+                    disabled={pagination.page <= 1}
+                    onClick={() =>
+                      handlePageChange(pagination.page - 1)
+                    }
+                  >
+                    Previous
+                  </button>
+
+                  <span>
+                    Page {pagination.page} of {pagination.totalPages}
+                    {' '}({pagination.total} interactions)
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() =>
+                      handlePageChange(pagination.page + 1)
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
