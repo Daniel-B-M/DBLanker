@@ -1,106 +1,186 @@
 # WeKall Tech Test
 
-Backend desarrollado con Node.js, TypeScript, Express y PostgreSQL.
+Mini panel de contact center: registro de interacciones (llamadas y tickets) por agente y métricas de desempeño.
+
+- **Backend:** Node.js, TypeScript, Express y PostgreSQL (sin ORM).
+- **Frontend:** React + Vite.
+- **Base de datos:** PostgreSQL 17 en Docker.
+
+Las decisiones técnicas están explicadas en [DECISIONS.md](DECISIONS.md).
+
+---
 
 ## Requisitos
 
-- Node.js y npm.
-- Docker con Docker Compose.
+| Herramienta | Versión | Comprobar con |
+|---|---|---|
+| Node.js | 22 LTS o superior | `node -v` |
+| npm | incluido con Node | `npm -v` |
+| Docker Desktop (con Docker Compose) | cualquiera reciente | `docker compose version` |
+| Git | cualquiera | `git --version` |
 
-## Instalación
+Docker Desktop debe estar **abierto** antes de empezar.
 
-Desde la raíz del proyecto:
+Puertos que se usan: `5432` (PostgreSQL), `3000` (API) y `5173` (frontend).
+
+---
+
+## Instalación paso a paso
+
+> Todos los comandos se ejecutan **desde la raíz del proyecto**, salvo que el paso indique otra carpeta.
+> Cuando un paso es distinto según el sistema, se muestran dos versiones: **PowerShell** (Windows) y **Bash** (macOS / Linux / Git Bash).
+
+### Paso 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/Daniel-B-M/wekall-tech-test.git
+cd wekall-tech-test
+```
+
+### Paso 2. Levantar la base de datos
 
 ```bash
 docker compose up -d
-cd backend
-npm ci
 ```
 
-En PowerShell, crea la configuración local:
+Espera unos segundos y comprueba que PostgreSQL está listo:
+
+```bash
+docker exec wekall-postgres pg_isready -U wekall -d wekall
+```
+
+Debe responder `accepting connections`. Si dice `no response`, espera un poco y repítelo.
+
+### Paso 3. Crear las tablas
+
+PowerShell:
+
+```powershell
+Get-Content -Raw backend/database/migrations/001_initial_schema.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+```
+
+Bash:
+
+```bash
+docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/migrations/001_initial_schema.sql
+```
+
+> Ejecuta este paso **solo una vez**, con la base vacía. Si las tablas ya existen, fallará (ver [Empezar desde cero](#empezar-desde-cero)).
+
+### Paso 4. Cargar los datos de demostración
+
+Ejecuta los tres archivos **en este orden**.
+
+PowerShell:
+
+```powershell
+Get-Content -Raw backend/database/seeds/000_reset.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/seeds/001_agents.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/seeds/002_interactions.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+```
+
+Bash:
+
+```bash
+docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/000_reset.sql
+docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/001_agents.sql
+docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/002_interactions.sql
+```
+
+Comprueba el resultado:
+
+```bash
+docker exec wekall-postgres psql -U wekall -d wekall -c "SELECT (SELECT COUNT(*) FROM agents) AS agents, (SELECT COUNT(*) FROM interactions) AS interactions;"
+```
+
+Debe mostrar **10 agentes** y **500 interacciones**.
+
+> `000_reset.sql` borra todos los datos de `agents` e `interactions`. Puedes repetir este paso cuando quieras volver a los datos originales.
+
+### Paso 5. Configurar el backend
+
+```bash
+cd backend
+```
+
+Crea el archivo de variables de entorno a partir del ejemplo.
+
+PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Si ya tienes `.env`, conserva el existente.
+Bash:
 
-## Base de datos
-
-Desde la raíz del proyecto, ejecuta la migración **solo en una base nueva**:
-
-```powershell
-Get-Content -Raw backend/database/migrations/001_initial_schema.sql |
-    docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+```bash
+cp .env.example .env
 ```
 
-### Datos de demostración
+Los valores por defecto ya funcionan con la base de datos del paso 2; no hace falta editar nada.
 
-El proyecto incluye un seed determinista para probar filtros, paginación y métricas con un conjunto de datos conocido.
+| Variable | Valor por defecto | Para qué sirve |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://wekall:wekall_dev@localhost:5432/wekall` | Conexión a PostgreSQL |
+| `BUSINESS_TIMEZONE` | `America/Bogota` | Zona horaria usada para agrupar fechas en las métricas |
+| `PORT` | `3000` | Puerto de la API |
 
-El seed genera:
+### Paso 6. Instalar y arrancar el backend
 
-- 10 agentes.
-- 500 interacciones.
-- Tipos `CALL` y `TICKET`.
-- Estados `OPEN`, `IN_PROGRESS` y `RESOLVED`.
-- 300 interacciones resueltas, 100 en progreso y 100 abiertas.
-- Un rango de fechas local de `2026-09-01` a `2026-09-14`.
-- Dos días sin actividad: `2026-09-05` y `2026-09-11`.
-- 150 interacciones (30 %) cuya fecha calendario es distinta entre UTC y `America/Bogota`, para verificar que la agrupación diaria use la zona horaria del negocio.
+Todavía dentro de `backend`:
+
+```bash
+npm ci
+npm run dev
+```
+
+Debe aparecer: `Server running at http://localhost:3000`.
+
+Comprueba que responde abriendo en el navegador <http://localhost:3000/api/health>. Debe mostrar:
+
+```json
+{ "status": "ok" }
+```
+
+**Deja esta terminal abierta.**
+
+### Paso 7. Instalar y arrancar el frontend
+
+Abre **otra terminal** en la raíz del proyecto:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+### Paso 8. Abrir la aplicación
+
+Entra a <http://localhost:5173>.
+
+- **Interactions:** listar y filtrar interacciones (crear y cambiar estado se hace por la API; ver [API](#api)).
+- **Metrics:** métricas por agente y volumen diario en un rango de fechas.
+
+Para ver los datos de demostración, usa el rango **2026-09-01** a **2026-09-14**.
+
+---
+
+## Datos de demostración
+
+El seed es determinista: siempre genera los mismos datos, para poder verificar filtros, paginación y métricas.
+
+- 10 agentes y 500 interacciones (`CALL` y `TICKET`).
+- 300 `RESOLVED`, 100 `IN_PROGRESS` y 100 `OPEN`.
+- Fechas locales del `2026-09-01` al `2026-09-14`, con dos días sin actividad: `2026-09-05` y `2026-09-11`.
+- 150 interacciones (30 %) con fecha distinta en UTC y en `America/Bogota`, para verificar que la agrupación diaria usa la zona horaria del negocio.
 - Casos frontera en `23:59:59` y `00:00:00` de `America/Bogota`.
-- Distintos volúmenes, tasas de resolución y tiempos promedio por agente.
+- Volúmenes, tasas de resolución y tiempos promedio distintos por agente.
 
-Los archivos se ejecutan en este orden:
+Ejemplo: una interacción guardada como `2026-09-15T04:22:00.000Z` es `2026-09-14 23:22` en Bogotá, así que cuenta para el 14 de septiembre.
 
-```text
-backend/database/seeds/000_reset.sql
-backend/database/seeds/001_agents.sql
-backend/database/seeds/002_interactions.sql
-```
+### Volumen diario esperado
 
-> `000_reset.sql` elimina los datos existentes de `agents` e `interactions` y reinicia sus identidades. Está pensado para reconstruir los datos de demostración en desarrollo.
-
-Desde la raíz del proyecto, en PowerShell:
-
-```powershell
-Get-Content -Raw backend/database/seeds/000_reset.sql |
-    docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
-
-Get-Content -Raw backend/database/seeds/001_agents.sql |
-    docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
-
-Get-Content -Raw backend/database/seeds/002_interactions.sql |
-    docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
-```
-
-Después del seed se esperan exactamente 10 agentes y 500 interacciones.
-
-Puedes comprobarlo con:
-
-```powershell
-docker exec -it wekall-postgres psql -U wekall -d wekall -c "
-SELECT
-    (SELECT COUNT(*) FROM agents) AS agents,
-    (SELECT COUNT(*) FROM interactions) AS interactions;
-"
-```
-
-Resultado esperado:
-
-```text
-agents = 10
-interactions = 500
-```
-
-Para validar el rango completo de demostración mediante la API:
-
-```text
-GET /api/metrics/agents?from=2026-09-01&to=2026-09-14
-GET /api/metrics/daily-volume?from=2026-09-01&to=2026-09-14
-```
-
-El volumen diario esperado es:
+`GET /api/metrics/daily-volume?from=2026-09-01&to=2026-09-14`
 
 | Fecha | Interacciones |
 |---|---:|
@@ -119,86 +199,106 @@ El volumen diario esperado es:
 | 2026-09-13 | 44 |
 | 2026-09-14 | 47 |
 
-La diferencia entre UTC y `America/Bogota` es intencional en parte de los datos. Por ejemplo, una interacción almacenada como `2026-09-15T04:22:00.000Z` corresponde a `2026-09-14 23:22` en Bogotá y, por tanto, pertenece al 14 de septiembre para las métricas del negocio.
+---
 
-## Ejecución
+## API
 
-Desde `backend`, inicia el servidor de desarrollo:
-
-```bash
-npm run dev
-```
-
-Para compilar y ejecutar la versión compilada:
-
-```bash
-npm run build
-npm start
-```
-
-Para comprobar tipos:
-
-```bash
-npm run typecheck
-```
-
-La API utiliza `http://localhost:3000` por defecto.
-
-## Endpoints
+Base: `http://localhost:3000`
 
 | Método | Ruta | Función |
 |---|---|---|
-| GET | `/api/agents` | Listar agentes |
-| POST | `/api/interactions` | Crear una interacción |
-| GET | `/api/interactions` | Listar y filtrar interacciones |
-| PATCH | `/api/interactions/:id/status` | Actualizar el estado |
-| GET | `/api/metrics/agents` | Consultar métricas por agente |
-| GET | `/api/metrics/daily-volume` | Consultar volumen diario |
-| GET | `/api/health` | Comprobar que el servidor HTTP responde |
+| GET | `/api/health` | Comprueba que el servidor HTTP responde (no consulta la base de datos) |
+| GET | `/api/config` | Devuelve la zona horaria del negocio que usa el frontend |
+| GET | `/api/agents` | Lista los agentes |
+| GET | `/api/interactions` | Lista y filtra interacciones (paginado) |
+| POST | `/api/interactions` | Crea una interacción |
+| PATCH | `/api/interactions/:id/status` | Cambia el estado de una interacción |
+| GET | `/api/metrics/agents` | Métricas por agente |
+| GET | `/api/metrics/daily-volume` | Volumen diario (incluye días sin actividad) |
 
-### Health check
+### Crear una interacción
 
-`GET /api/health` responde con `200 OK` y:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-Este endpoint comprueba únicamente que el servidor HTTP responde. No consulta PostgreSQL ni verifica su disponibilidad.
-
-Ejemplo de creación:
+`POST /api/interactions`
 
 ```json
-{
-  "agentId": 1,
-  "type": "CALL"
-}
+{ "agentId": 1, "type": "CALL" }
 ```
 
-Usa un identificador existente obtenido de `/api/agents`.
+`type`: `CALL` o `TICKET`. El `agentId` debe existir (consúltalo en `/api/agents`).
 
-Ejemplo de actualización:
+### Cambiar el estado
+
+`PATCH /api/interactions/1/status`
 
 ```json
-{
-  "status": "RESOLVED"
-}
+{ "status": "IN_PROGRESS" }
 ```
 
-## Filtros y métricas
+Solo se permite avanzar en este orden: `OPEN` → `IN_PROGRESS` → `RESOLVED`.
 
-Interacciones admite `agentId`, `status`, `from`, `to`, `page` y `limit`. Si se filtra por fechas, deben enviarse ambas.
+Una interacción nueva empieza en `OPEN`, así que primero hay que enviar `IN_PROGRESS` y después `RESOLVED`. Cualquier otro cambio responde `409 INVALID_STATUS_TRANSITION`.
 
-Las métricas requieren `from` y `to` en formato `YYYY-MM-DD`, con un máximo de 366 días, incluyendo ambos extremos.
+### Filtros de `/api/interactions`
 
-Ejemplo:
+| Parámetro | Valores | Notas |
+|---|---|---|
+| `agentId` | número | |
+| `type` | `CALL`, `TICKET` | |
+| `status` | `OPEN`, `IN_PROGRESS`, `RESOLVED` | |
+| `from`, `to` | `YYYY-MM-DD` | Deben enviarse juntos |
+| `page` | número | Por defecto `1` |
+| `limit` | 1 a 100 | Por defecto `20` |
 
-```text
-/api/metrics/daily-volume?from=2026-09-01&to=2026-09-14
+Ejemplo: `/api/interactions?status=OPEN&from=2026-09-01&to=2026-09-14&page=1&limit=20`
+
+### Reglas de las métricas
+
+- `from` y `to` son obligatorios, en formato `YYYY-MM-DD`, con un máximo de 366 días (ambos extremos incluidos).
+- Las fechas se interpretan en `BUSINESS_TIMEZONE` (por defecto `America/Bogota`).
+- Las interacciones se seleccionan por fecha de apertura y se cuentan con su estado actual.
+
+---
+
+## Otros comandos
+
+Backend (desde `backend`):
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo con recarga automática |
+| `npm run typecheck` | Comprueba los tipos de TypeScript |
+| `npm run build` | Compila a `dist/` |
+| `npm start` | Ejecuta la versión compilada |
+
+Frontend (desde `frontend`):
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo en el puerto 5173 |
+| `npm run build` | Compila la versión de producción |
+| `npm run lint` | Revisa el código con ESLint |
+
+---
+
+## Problemas comunes
+
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| `docker: command not found` o error de conexión con Docker | Docker Desktop no está abierto | Abre Docker Desktop y espera a que inicie |
+| `port is already allocated` al levantar la base | Ya hay un PostgreSQL usando el puerto 5432 | Detén ese PostgreSQL y repite el paso 2 |
+| `relation "agents" already exists` en el paso 3 | La migración ya se había ejecutado | Nada que hacer; sigue al paso 4. O empieza desde cero |
+| `DATABASE_URL is required` al arrancar el backend | Falta el archivo `.env` | Repite el paso 5 |
+| El frontend muestra `Unable to load the operation time zone.` | El backend no está corriendo | Revisa la terminal del paso 6 |
+| Errores de CORS en la consola del navegador | El frontend no quedó en el puerto 5173 (estaba ocupado) | Libera el puerto 5173 y reinicia el frontend |
+
+---
+
+## Empezar desde cero
+
+Esto borra la base de datos por completo (contenedor y volumen):
+
+```bash
+docker compose down -v
 ```
 
-Los rangos se interpretan según `BUSINESS_TIMEZONE`, cuyo valor predeterminado es `America/Bogota`.
-
-Las métricas seleccionan interacciones por fecha de apertura y consideran su estado actual. El volumen diario incluye los días sin actividad.
+Después repite desde el **paso 2**.

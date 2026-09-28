@@ -1,155 +1,96 @@
 # Decisiones del proyecto
 
-## Cómo trabajé
+Para esta prueba prioricé dos cosas: que el proyecto fuera **fácil de entender** y que las **métricas y los datos de la base de datos fueran coherentes**.
 
-Lo digo desde el inicio: **me apoyé en IA para planear la prueba, proponer las tecnologías y escribir el código.**
+## Cómo encaré la prueba
 
-Mi papel fue **supervisar y decidir**. Pregunté el porqué de cada propuesta, acepté lo que entendía y tenía sentido, y rechacé lo que no. No domino cada línea del código, pero sí entiendo **qué se decidió y por qué**, y eso es lo que explico aquí.
+1. **Inventario de conocimientos.** Al leer la prueba separé qué sabía, qué no sabía y cómo iba a resolver lo que no sabía.
+2. **Lo que sabía:** tengo experiencia gestionando bases de datos (insights, filtros, consultas). Eso me facilitó entender qué producto se pedía.
+3. **Lo que no sabía:** cómo se construyen por dentro esas bases de datos que antes gestionaba. Investigar esto fue tiempo obligatorio; no podía avanzar sin entenderlo.
+4. **Uso de IA:** la usé para crear la hoja de ruta, elegir tecnologías y escribir el código.
+5. **Mi rol:** mantuve una posición crítica y basé mis decisiones en mi experiencia gestionando bases de datos.
 
-### Lo que yo pedí desde la planeación
+### Tecnologías
 
-La IA no decidió todo por su cuenta. Estas condiciones las puse yo antes de empezar, y el proyecto se construyó a partir de ellas:
-
-- **Responsabilidades separadas** (punto 1).
-- **Zona horaria fácil de cambiar** (punto 6).
-- **No usar ORM** (punto 4).
-
-### En qué me guio la IA: las tecnologías
-
-Todavía no tengo experiencia para saber qué tecnologías o bases de datos son mejores que otras. Por eso **la IA me guio en esta elección**, según el alcance de la prueba y las buenas prácticas para este tipo de producto. Mi parte fue preguntar si eran las adecuadas para este caso y entender para qué sirve cada una:
-
-| Tecnología | Para qué sirve aquí | Por qué encaja |
-| --- | --- | --- |
-| **Node + Express** | El servidor que recibe las peticiones. | Node lo pide la prueba; Express es simple y muy usado. |
-| **TypeScript** | JavaScript con tipos. | Avisa de errores antes de ejecutar el programa. |
-| **PostgreSQL** | La base de datos. | Maneja muy bien fechas con zona horaria y calcula totales y promedios rápido. |
-| **Zod** | Revisa los datos que llegan. | Rechaza entradas inválidas con un mensaje claro. |
-| **React + Vite** | La interfaz. | Suficiente para una vista simple; arranca rápido. |
-| **Docker** | Levanta la base de datos. | Cualquiera puede iniciarla con un solo comando, sin instalar PostgreSQL. |
-
-La excepción fue el ORM: la IA lo sugirió y yo lo rechacé (punto 4).
+| Tecnología | Para qué sirve aquí |
+| --- | --- |
+| Node + Express + TypeScript | Servidor de la API (Node lo pide la prueba; TypeScript avisa errores antes de ejecutar). |
+| PostgreSQL (con `pg`, sin ORM) | Base de datos; maneja bien fechas con zona horaria y calcula totales y promedios. |
+| Zod | Valida los datos que llegan y responde con errores claros. |
+| React + Vite | Interfaz simple. |
+| Docker | Levanta la base de datos con un solo comando. |
 
 ---
 
-## 1. Estructura con responsabilidades separadas
+## 1. Estructura separada por módulos
 
-Desde la planeación pedí que el código estuviera separado. Se separó de dos maneras.
+Pedí separar el backend en tres módulos: **agentes, interacciones y métricas**.
 
-**Primero, por tema (módulos).** El backend tiene tres carpetas, una por cada parte del negocio:
+- Dentro de cada módulo se separan las **peticiones** (rutas y controladores), las **reglas** (servicios) y las **consultas** (repositorios).
+- Esto genera más archivos, pero también **orden**: facilita la lectura, los cambios y la escalabilidad.
+- **Por qué lo pedí:** en las bases de datos que gestioné, cuando un usuario pedía un cambio, muchas veces se lo negaban porque era difícil de hacer por la forma en que se había estructurado la base de datos desde el principio.
 
-| Módulo | De qué se encarga |
-| --- | --- |
-| **Agentes** | Consultar la lista de agentes del equipo. |
-| **Interacciones** | Crear llamadas y tickets, cambiar su estado y listarlos con filtros. |
-| **Métricas** | Calcular los totales, la tasa de resolución, el tiempo promedio y el volumen por día. |
+## 2. Las métricas se miden por fecha de apertura
 
-Así, si hay que cambiar algo de las métricas, todo está en la carpeta de métricas.
+Cuando se consulta un rango de fechas, se incluyen las interacciones **abiertas** en ese rango, tanto las resueltas como las que no.
 
-**Segundo, por tarea dentro de cada módulo.** Cada archivo hace **una sola cosa**:
+- **Consecuencia:** las cifras de un periodo pasado pueden cambiar si después se resuelve alguno de esos casos.
+- **Cómo lo mejoraría:**
+  - Medir también por **fecha de cierre**, para saber cuántos casos se resolvieron durante un periodo. Esto es muy útil y necesario.
+  - Guardar un **historial de estados**.
+  - Mostrar **indicadores separados**: recibidos, resueltos y cerrados durante el periodo.
+- Todo esto depende de **lo que se quiera medir**.
 
-| Parte | Qué hace |
-| --- | --- |
-| Rutas | Dicen qué direcciones (endpoints) existen. |
-| Controladores | Reciben la petición y revisan que los datos vengan bien. |
-| Servicios | Tienen las reglas del negocio (por ejemplo, qué cambios de estado se permiten). |
-| Repositorios | Tienen las consultas a la base de datos. |
+## 3. Flujo de estados estricto
 
-**En el frontend se siguió la misma idea.** Cada pantalla tiene su propio archivo:
+El flujo es `OPEN → IN_PROGRESS → RESOLVED`. **No se permiten saltos ni retrocesos**, las fechas de apertura y de cierre se registran **automáticamente** y, por ahora, **no se permite reabrir** una interacción.
 
-| Archivo | Qué hace |
-| --- | --- |
-| `App.tsx` | Solo carga la zona horaria y cambia entre las dos vistas. |
-| `pages/InteractionsPage.tsx` | La vista del listado con sus filtros y paginación. |
-| `pages/MetricsPage.tsx` | La vista de métricas por agente y volumen por día. |
-| `services/` | Las llamadas a la API, separadas de las pantallas. |
+- En mi experiencia, los datos se usan para medir rendimiento y funcionamiento, sacar insights y tomar decisiones. Por eso los estados son estrictos.
+- Así se evita que una fecha de cierre sea anterior a la de apertura.
+- Las interacciones las gestionan personas, y las personas pueden cometer errores; por eso el sistema no depende de que alguien escriba las fechas a mano.
+- Reabrir una interacción alteraría sus fechas y, con ellas, las métricas y la salud de los datos.
+- Si dos personas cambian la misma interacción al mismo tiempo, solo una lo logra y la otra recibe un aviso para recargar. Así no se pisan los cambios.
 
-Al cambiar de vista, la otra **se oculta en lugar de borrarse**. Así el usuario no pierde sus filtros ni sus resultados al ir y volver entre Interacciones y Métricas.
+## 4. Sin ORM
 
-**Por qué lo pedí:** pensé en **otros desarrolladores**. Si alguien nuevo llega al proyecto, sabe dónde buscar: primero la carpeta del tema (agentes, interacciones o métricas) y luego el archivo según la tarea (una regla está en el servicio y una consulta en el repositorio). Puede cambiar una parte sin romper las demás.
+Decidí no usar un ORM por **practicidad**: con mi nivel de conocimiento, el SQL directo me resulta más fácil de leer y controlar. Con SQL directo (`pg`) veo exactamente cómo se cuentan y promedian las métricas y cómo se convierte cada fecha.
 
-**Costo que acepto:** hay más archivos y más código, incluso para operaciones sencillas.
+- **Los cálculos los hace la base de datos.** No traigo todas las interacciones al servidor para sumarlas una por una: PostgreSQL cuenta y promedia, y el servidor solo recibe el resultado (una fila por agente y una por día). Es la forma que sigue funcionando cuando hay muchos datos.
 
-## 2. Medir por fecha de apertura, no de cierre
+## 5. Zona horaria de Colombia
 
-Cuando el usuario elige un rango de fechas, las métricas toman las interacciones **que se abrieron** en ese rango.
+Una llamada a las 9 p. m. pertenece al día de Colombia, aunque en UTC ya sea el día siguiente. Las métricas agrupan por día usando `America/Bogota`.
 
-**Por qué:**
+- La configuración está **centralizada en el backend** y la interfaz consulta ese mismo valor.
+- Pedí que fuera **fácil de cambiar**: si en algún momento no se quiere medir `America/Bogota` sino, por ejemplo, `Europe/Paris`, basta con cambiar una variable (`BUSINESS_TIMEZONE`), sin tocar el código.
+- **Límite:** de momento solo acepta **una** zona horaria.
 
-1. **Todas las interacciones tienen fecha de apertura; solo las resueltas tienen fecha de cierre.** Si filtrara por cierre, las abiertas y en progreso desaparecerían del conteo. Todas las que cuento estarían resueltas y la tasa de resolución daría **siempre 100 %**. La métrica no serviría.
-2. **Responde a la pregunta del líder.** "¿Cuántas interacciones atendió cada agente?" y "volumen por día" hablan de cuánto trabajo **llegó** cada día. Eso lo marca la apertura.
-3. **Todas las métricas miran el mismo grupo.** El total, las resueltas, la tasa y el promedio se calculan sobre las mismas interacciones. Así los números son coherentes entre sí.
+## 6. Paginación
 
-**Costo que acepto:** los números de un rango pasado pueden cambiar. Si una interacción de la semana pasada se resuelve hoy, al consultar otra vez aparece como resuelta. Muestro el **estado actual**, no una "foto" del pasado.
+- Tamaño predeterminado de **20 registros** y máximo de **100** por página.
+- Al cambiar de página **se conservan los filtros**.
+- Resultados ordenados por **fecha de apertura**.
+- Se hizo según el alcance de la prueba; su rendimiento debe validarse en una situación real.
+- **Por qué el máximo:** según mi experiencia, permitir páginas con muchos registros afecta mucho el rendimiento.
+- Con la misma idea, el rango de fechas de una consulta tiene un máximo de **366 días**, para evitar que alguien pida por error una consulta enorme.
 
-## 3. No permitir saltar de OPEN a RESOLVED
+## 7. Con más tiempo
 
-Una interacción solo puede avanzar así: `OPEN → IN_PROGRESS → RESOLVED`. No se puede saltar pasos ni retroceder.
+1. **Ordenamientos (sorts)**: son muy útiles para leer datos.
+2. **Insights** mensuales, anuales y de otros periodos, pensados siempre en el usuario.
+3. **Gráficos** más sencillos de leer que una tabla.
+4. Métricas por **fecha de cierre**, **historial de estados** e **indicadores separados** (ver punto 2).
 
-**Por qué:**
+## 8. Qué salió mal
 
-1. **Es el flujo que pide el enunciado:** abierta → en progreso → resuelta.
-2. **Datos confiables.** Si se pudiera saltar, habría interacciones "resueltas" que nadie tomó ni trabajó. Obligar el paso por "en progreso" asegura que cada caso resuelto pasó por el trabajo de un agente.
-3. **La hora de cierre se guarda sola** al resolver. Nadie la escribe a mano, así que no se puede equivocar.
+1. **Zona horaria en el frontend.** En el backend se implementó bien, pero el frontend tomaba la hora del navegador.
+   - Lo detecté con una auditoría que hice con Claude al manejo de la zona horaria.
+   - Ahora el frontend toma la zona horaria del backend y funciona sin importar la zona horaria del PC o del navegador.
+2. **Cambio de Prisma a SQL con `pg`.** Empecé con Prisma (un ORM) y luego decidí cambiar a SQL directo; eso generó un retraso.
+3. **Estados.** Aunque pedí desde el principio una lógica de estados estricta, al final me di cuenta de que se podía pasar de `OPEN` a `RESOLVED`. Se corrigió. Lección: **la IA comete errores** y hay que revisar.
 
-**Costo que acepto:** una llamada muy rápida necesita dos cambios de estado en vez de uno, y no se puede reabrir una interacción. Si el negocio lo pidiera, se podría cambiar.
+## 9. Qué haría diferente
 
-**Extra:** si dos personas cambian la misma interacción al mismo tiempo, solo una lo logra y la otra recibe un aviso para recargar. Así no se pisan los cambios.
-
-## 4. No usar ORM (SQL directo)
-
-Un ORM es una herramienta que escribe las consultas a la base de datos por ti. **La IA me lo sugirió y lo rechacé.**
-
-**Por qué:**
-
-1. **Lo más evaluado son las métricas.** Quería ver exactamente cómo se cuenta y se promedia, sin que una herramienta lo esconda.
-2. **Para mí, como junior, el SQL directo es más fácil de leer y explicar.** Un ORM agrega otra capa que tendría que aprender y que no sabría explicar si genera algo mal.
-3. **La zona horaria es delicada**, y con SQL directo veo exactamente cómo se convierte cada fecha.
-
-**Costo que acepto:** escribo más código a mano y, si cambio una tabla, tengo que actualizar las consultas yo mismo.
-
-## 5. Los cálculos los hace la base de datos
-
-No traigo las 500 (o un millón de) interacciones al servidor para sumarlas una por una. Le pido a PostgreSQL que cuente y promedie, y el servidor solo recibe el resultado: una fila por agente y una por día.
-
-**Por qué:** es lo que pide el enunciado y es la forma que sigue funcionando cuando hay muchos datos. La base de datos está hecha para esto.
-
-## 6. La zona horaria (UTC-5)
-
-Una interacción de las **8 p. m. en Cali** es la **1 a. m. del día siguiente en UTC**, pero debe contar para el día de Cali.
-
-- Guardo la **hora exacta** del evento.
-- Al agrupar "por día", la base de datos usa la hora de **Colombia (`America/Bogota`)**, no la del servidor.
-- La zona está configurada en **un solo lugar** del backend, y el frontend la pide a la API. Así nunca pueden quedar distintas.
-
-**Pedido mío desde la planeación: que fuera fácil de cambiar.** Si mañana la operación fuera, por ejemplo, un equipo completo en Francia, basta cambiar una línea de configuración (`BUSINESS_TIMEZONE=Europe/Paris`), sin tocar el código.
-
-Por eso se usa el nombre de la zona (`America/Bogota`, `Europe/Paris`) y no un número fijo como "-5". Francia cambia de hora en verano e invierno, y el nombre de la zona ya tiene en cuenta esos cambios.
-
-**Límite:** hoy el sistema maneja **una zona a la vez**. Si hubiera equipos en Colombia y en Francia al mismo tiempo, cada equipo necesitaría su propia zona guardada. Eso quedaría como mejora.
-
-**Comprobado:** con los datos de ejemplo, el volumen por día da igual aunque la base de datos esté configurada en otra zona horaria (se probó con UTC, Tokio y Los Ángeles).
-
-## 7. Otras decisiones cortas
-
-| Decisión | Por qué |
-| --- | --- |
-| Llamadas y tickets en **una sola tabla** | Tienen los mismos datos; las métricas salen de una sola consulta. |
-| Rango máximo de **366 días** | Evitar que alguien pida por error una consulta enorme. |
-| **Paginación** simple (página y límite) | Fácil de entender; suficiente para esta prueba. |
-| **Validar las entradas** (fechas, estados, agentes) | Responder con un error claro en vez de fallar o guardar datos malos. |
-| **Datos de ejemplo** con días vacíos y casos cerca de medianoche | Poder comprobar que el agrupamiento por día y la zona horaria funcionan. |
-
-## 8. Uso de IA
-
-- **En qué me apoyé:** planificación, selección de tecnologías (me guio según el alcance y las buenas prácticas, porque no tengo experiencia para compararlas) y escritura del código.
-- **Qué pedí yo:** responsabilidades separadas (punto 1) y una zona horaria fácil de cambiar (punto 6).
-- **Qué rechacé:** el ORM (punto 4).
-- **Qué revisé:** pedí una auditoría del manejo de la hora. Confirmó que los cálculos estaban bien, pero encontró que el frontend tenía la zona horaria escrita a mano mientras el backend la leía de la configuración. Se corrigió para que haya una sola fuente.
-- **Lo que entiendo y lo que no:** entiendo las decisiones y sus costos. No podría escribir todo el código solo todavía, y prefiero decirlo con claridad.
-
-## 9. Qué haría con más tiempo
-
-1. **Pruebas automáticas** de las métricas y la zona horaria. Es donde un error pasa más desapercibido.
-2. **Historial de estados**, para saber cuánto tiempo pasa una interacción en cada etapa.
-3. **Probar con muchos más datos** antes de decir que está listo para producción.
-4. Para producción: **inicio de sesión y permisos**.
+1. **Mejorar mi uso de git.** Hice commits después de acumular muchos cambios, y eso no es una buena práctica.
+2. **Probar con más datos.** Probé con 1 o 2 registros, y así los resultados eran confusos.
+3. **Crear la estructura de páginas (vistas del frontend) desde el principio.**
