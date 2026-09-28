@@ -62,7 +62,7 @@ export async function changeInteractionStatus(
 
     const isValidTransition =
         (currentStatus === "OPEN" &&
-            (newStatus === "IN_PROGRESS" || newStatus === "RESOLVED")) ||
+            newStatus === "IN_PROGRESS") ||
         (currentStatus === "IN_PROGRESS" &&
             newStatus === "RESOLVED");
 

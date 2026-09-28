@@ -7,6 +7,7 @@ import interactionRoutes from "./modules/interactions/interaction.routes.js";
 import metricsRoutes from "./modules/metrics/metrics.routes.js";
 
 import { errorHandler } from "./middlewares/error.middleware.js";
+import { BUSINESS_TIMEZONE } from "./config/environment.js";
 
 const app = express();
 
@@ -29,6 +30,11 @@ app.use(express.json());
 app.use("/api/agents", agentRoutes);
 app.use("/api/interactions", interactionRoutes);
 app.use("/api/metrics", metricsRoutes);
+
+// Single source of truth for the operation time zone used by the frontend.
+app.get("/api/config", (_req, res) => {
+    res.status(200).json({ businessTimezone: BUSINESS_TIMEZONE });
+});
 
 app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok" });

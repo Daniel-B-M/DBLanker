@@ -7,7 +7,12 @@ import {
     type DailyVolumeMetric,
 } from '../services/metrics.api'
 
-function MetricsPage() {
+interface MetricsPageProps {
+    timezoneLabel: string
+    visible: boolean
+}
+
+function MetricsPage({ timezoneLabel, visible }: MetricsPageProps) {
     const [from, setFrom] = useState('2026-09-01')
     const [to, setTo] = useState('2026-09-14')
     const [metrics, setMetrics] = useState<AgentMetrics[] | null>(null)
@@ -56,8 +61,9 @@ function MetricsPage() {
     }
 
     return (
-        <section>
+        <section hidden={!visible}>
             <h2>Metrics</h2>
+            <p>Days are grouped in {timezoneLabel}.</p>
 
             <form onSubmit={handleSubmit}>
                 <div>
@@ -113,7 +119,7 @@ function MetricsPage() {
                         <tbody>
                             {dailyVolume.map((day) => (
                                 <tr key={day.date}>
-                                    <td>{day.date}</td>
+                                    <td>{day.date.split('-').reverse().join('/')}</td>
                                     <td>{day.totalInteractions}</td>
                                 </tr>
                             ))}
