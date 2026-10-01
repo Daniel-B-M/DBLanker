@@ -9,11 +9,17 @@ import metricsRoutes from "./modules/metrics/metrics.routes.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { BUSINESS_TIMEZONE } from "./config/environment.js";
 
+
 const app = express();
+
+const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: allowedOrigins,
     }),
 );
 
