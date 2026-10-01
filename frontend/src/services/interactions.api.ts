@@ -1,3 +1,5 @@
+import { API_URL } from './config.api';
+
 export interface Interaction {
     id: number
     agentId: number
@@ -29,8 +31,6 @@ export interface InteractionFilters {
     page?: number
     limit?: number
 }
-
-const API_URL = 'http://localhost:3000/api'
 
 export async function getInteractions(
     filters: InteractionFilters = {},

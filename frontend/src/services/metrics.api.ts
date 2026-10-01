@@ -1,3 +1,5 @@
+import { API_URL } from './config.api';
+
 export interface AgentMetrics {
     agentId: number
     agentName: string
@@ -11,8 +13,6 @@ export interface MetricsFilters {
     from: string
     to: string
 }
-
-const API_URL = 'http://localhost:3000/api'
 
 export async function getAgentMetrics(
     filters: MetricsFilters,
