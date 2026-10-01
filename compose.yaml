@@ -1,19 +1,19 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: wekall-postgres
+    container_name: dblanker-postgres
     restart: unless-stopped
 
     environment:
-      POSTGRES_USER: wekall
-      POSTGRES_PASSWORD: wekall_dev
-      POSTGRES_DB: wekall
+      POSTGRES_USER: dblanker
+      POSTGRES_PASSWORD: dblanker_dev
+      POSTGRES_DB: dblanker
 
     ports:
       - "127.0.0.1:5432:5432"
 
     volumes:
-      - wekall_postgres_data:/var/lib/postgresql/data
+      - dblanker_postgres_data:/var/lib/postgresql/data
 
 volumes:
-  wekall_postgres_data:
+  dblanker_postgres_data:

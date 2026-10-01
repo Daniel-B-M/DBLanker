@@ -26,7 +26,7 @@ function App() {
 
   return (
     <main>
-      <h1>WeKall Dashboard</h1>
+      <h1>DBLanker Dashboard</h1>
 
       {configError && <p role="alert">{configError}</p>}
 

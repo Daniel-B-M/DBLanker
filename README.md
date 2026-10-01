@@ -1,4 +1,4 @@
-# WeKall Tech Test
+# DBLanker
 
 Mini panel de contact center: registro de interacciones (llamadas y tickets) por agente y métricas de desempeño.
 
@@ -33,8 +33,8 @@ Puertos que se usan: `5432` (PostgreSQL), `3000` (API) y `5173` (frontend).
 ### Paso 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Daniel-B-M/wekall-tech-test.git
-cd wekall-tech-test
+git clone https://github.com/Daniel-B-M/DBLanker.git
+cd DBLanker
 ```
 
 ### Paso 2. Levantar la base de datos
@@ -46,7 +46,7 @@ docker compose up -d
 Espera unos segundos y comprueba que PostgreSQL está listo:
 
 ```bash
-docker exec wekall-postgres pg_isready -U wekall -d wekall
+docker exec dblanker-postgres pg_isready -U dblanker -d dblanker
 ```
 
 Debe responder `accepting connections`. Si dice `no response`, espera un poco y repítelo.
@@ -56,13 +56,13 @@ Debe responder `accepting connections`. Si dice `no response`, espera un poco y 
 PowerShell:
 
 ```powershell
-Get-Content -Raw backend/database/migrations/001_initial_schema.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/migrations/001_initial_schema.sql | docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1
 ```
 
 Bash:
 
 ```bash
-docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/migrations/001_initial_schema.sql
+docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1 < backend/database/migrations/001_initial_schema.sql
 ```
 
 > Ejecuta este paso **solo una vez**, con la base vacía. Si las tablas ya existen, fallará (ver [Empezar desde cero](#empezar-desde-cero)).
@@ -74,23 +74,23 @@ Ejecuta los tres archivos **en este orden**.
 PowerShell:
 
 ```powershell
-Get-Content -Raw backend/database/seeds/000_reset.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
-Get-Content -Raw backend/database/seeds/001_agents.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
-Get-Content -Raw backend/database/seeds/002_interactions.sql | docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/seeds/000_reset.sql | docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/seeds/001_agents.sql | docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1
+Get-Content -Raw backend/database/seeds/002_interactions.sql | docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1
 ```
 
 Bash:
 
 ```bash
-docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/000_reset.sql
-docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/001_agents.sql
-docker exec -i wekall-postgres psql -U wekall -d wekall -v ON_ERROR_STOP=1 < backend/database/seeds/002_interactions.sql
+docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1 < backend/database/seeds/000_reset.sql
+docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1 < backend/database/seeds/001_agents.sql
+docker exec -i dblanker-postgres psql -U dblanker -d dblanker -v ON_ERROR_STOP=1 < backend/database/seeds/002_interactions.sql
 ```
 
 Comprueba el resultado:
 
 ```bash
-docker exec wekall-postgres psql -U wekall -d wekall -c "SELECT (SELECT COUNT(*) FROM agents) AS agents, (SELECT COUNT(*) FROM interactions) AS interactions;"
+docker exec dblanker-postgres psql -U dblanker -d dblanker -c "SELECT (SELECT COUNT(*) FROM agents) AS agents, (SELECT COUNT(*) FROM interactions) AS interactions;"
 ```
 
 Debe mostrar **10 agentes** y **500 interacciones**.
@@ -121,7 +121,7 @@ Los valores por defecto ya funcionan con la base de datos del paso 2; no hace fa
 
 | Variable | Valor por defecto | Para qué sirve |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://wekall:wekall_dev@localhost:5432/wekall` | Conexión a PostgreSQL |
+| `DATABASE_URL` | `postgresql://dblanker:dblanker_dev@localhost:5432/dblanker` | Conexión a PostgreSQL |
 | `BUSINESS_TIMEZONE` | `America/Bogota` | Zona horaria usada para agrupar fechas en las métricas |
 | `PORT` | `3000` | Puerto de la API |
 
